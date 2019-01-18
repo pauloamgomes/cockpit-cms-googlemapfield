@@ -1,10 +1,18 @@
 <field-googlemap>
 
+<style>
+  .pac-container { z-index: 100000; }
+  .gmap {
+    height: 400px;
+    border: 1px solid #ccc;
+  }
+</style>
+
   <div class="uk-grid">
 
     <div class="uk-margin uk-width-3-4">
       <label>{ App.i18n.get('Address') }</label>
-      <field-text id="address" bind="value.address" value="{ value.address }" maxlength="120" />
+      <field-text id="address-{mapId}" bind="value.address" value="{ value.address }" maxlength="120" />
     </div>
 
     <div class="uk-margin uk-width-1-4">
@@ -12,11 +20,11 @@
     </div>
 
     <div class="uk-panel uk-width-1-1">
-      <div id="{mapId}" class="gmap" style="height: 400px; border: 1px solid #ccc"></div>
+      <div id="map-{mapId}" class="gmap">Loading map...</div>
       <label><span class="uk-text-bold">Latitude:</span> {value.lat} <span class="uk-text-bold">Longitude:</span> {value.lng}</label>
     </div>
 
-    <div class="uk-modal uk-modal-map uk-height-viewport">
+    <div class="uk-modal uk-modal-{mapId} uk-height-viewport">
       <div class="uk-modal-dialog">
         <a href="" class="uk-modal-close uk-close"></a>
         <strong>{App.i18n.get('Map Options')}</strong>
@@ -76,7 +84,8 @@
     var $this = this;
     this.mixin(RiotBindMixin);
 
-    $this.mapId = "map-" + opts.bind;
+    $this.mapId = 'gmap';
+    $this.apiReady = false;
 
     this.value = {
       'header': '',
@@ -108,17 +117,25 @@
         if (data.result && data.result.api_key) {
           $this.api_key = data.result.api_key;
           $this.loadScript('//maps.googleapis.com/maps/api/js?key=' + $this.api_key + '&libraries=places').then(function() {
-              $this.apiready = true;
+              $this.apiReady = true;
               setTimeout(function() {
-                $this.map = new google.maps.Map(document.getElementById($this.mapId), {
+                $this.map = new google.maps.Map(document.getElementById("map-" + $this.mapId), {
                   center: {lat: $this.value.lat, lng: $this.value.lng},
                   zoom: 1
                 });
                 google.maps.event.addListener($this.map, 'click', function(event) {
                   $this.placeMarker(event.latLng, $this.map);
                 });
-                var input = App.$('#address').find('input')[0];
-                var autocomplete = new google.maps.places.Autocomplete(input, {});
+                var input = App.$('#address-' + $this.mapId).find('input')[0];
+                var autocomplete = new google.maps.places.Autocomplete(input);
+                autocomplete.bindTo('bounds', $this.map);
+
+                if ($this.value.address) {
+                  var position = new google.maps.LatLng($this.value.lat, $this.value.lng);
+                  $this.map.setCenter(position);
+                  $this.map.setZoom(parseInt($this.value.options.zoom));
+                }
+
                 google.maps.event.addListener(autocomplete, 'place_changed', function() {
                   var place = autocomplete.getPlace();
                   if (place && place.geometry) {
@@ -127,14 +144,14 @@
                   }
                 });
                 $this.geocoder = new google.maps.Geocoder();
-                new google.maps.Geocoder();
               }, 50);
-              $this.modal = UIkit.modal(App.$('.uk-modal-map', this.root), {modal:true});
+              $this.modal = UIkit.modal(App.$('.uk-modal-' + $this.mapId, this.root), {modal:true});
               $this.update();
           });
         } else {
           App.ui.notify(App.i18n.get("Google Maps api_key not configured"), "danger");
         }
+        $this.update();
       });
     });
 
@@ -157,27 +174,32 @@
 
     $this.loadScript = function(url) {
       return new Promise(function(resolve, reject) {
-        var script = document.createElement('script');
+        if (typeof google === 'undefined') {
+          var script = document.createElement('script');
 
-        script.async = true;
+          script.async = true;
 
-        script.onload = function() {
-            resolve(url);
-        };
+          script.onload = function() {
+              resolve(url);
+          };
 
-        script.onerror = function() {
-            reject(url);
-        };
+          script.onerror = function() {
+              reject(url);
+          };
 
-        script.src = url;
+          script.src = url;
 
-        document.getElementsByTagName('head')[0].appendChild(script);
+          document.getElementsByTagName('head')[0].appendChild(script);
+        } else {
+          resolve(url);
+        }
       });
     }
 
     $this.handleMarkerDragEvent = function(event) {
       $this.value.lat = event.latLng.lat();
       $this.value.lng = event.latLng.lng();
+      $this.$setValue($this.value);
       $this.update();
     }
 
@@ -190,6 +212,7 @@
         } else {
           $this.value.address = "";
         }
+        $this.$setValue($this.value);
         $this.update();
       });
     }
@@ -215,7 +238,7 @@
         } else {
           $this.value.address = "";
         }
-        $this.update();
+        $this.$setValue($this.value);
       });
 
       $this.update();
