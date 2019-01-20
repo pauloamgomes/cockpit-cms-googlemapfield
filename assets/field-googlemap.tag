@@ -123,17 +123,21 @@
                   center: {lat: $this.value.lat, lng: $this.value.lng},
                   zoom: 1
                 });
+                $this.geocoder = new google.maps.Geocoder();
+
                 google.maps.event.addListener($this.map, 'click', function(event) {
                   $this.placeMarker(event.latLng, $this.map);
                 });
-                var input = App.$('#address-' + $this.mapId).find('input')[0];
-                var autocomplete = new google.maps.places.Autocomplete(input);
+
+                $this.input = App.$('#address-' + $this.mapId).find('input')[0];
+                var autocomplete = new google.maps.places.Autocomplete($this.input);
                 autocomplete.bindTo('bounds', $this.map);
 
                 if ($this.value.address) {
                   var position = new google.maps.LatLng($this.value.lat, $this.value.lng);
                   $this.map.setCenter(position);
                   $this.map.setZoom(parseInt($this.value.options.zoom));
+                  $this.placeMarker(position, $this.map);
                 }
 
                 google.maps.event.addListener(autocomplete, 'place_changed', function() {
@@ -143,7 +147,7 @@
                     $this.map.setZoom(9);
                   }
                 });
-                $this.geocoder = new google.maps.Geocoder();
+
               }, 50);
               $this.modal = UIkit.modal(App.$('.uk-modal-' + $this.mapId, this.root), {modal:true});
               $this.update();

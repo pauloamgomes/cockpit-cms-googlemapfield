@@ -75,7 +75,7 @@
     togglePreview(e) {
       e.preventDefault();
       url = $this.value.url;
-      if (!url || !(/^(http|https)\:\/\/www.google.com\/maps\/d\/embed.*/).test(url)) {
+      if (!url || !(/^(http|https)\:\/\/www.google.com\/maps\/d\/.*/).test(url)) {
         App.ui.notify(App.i18n.get("The iFrame google map URL is invalid!"), "danger");
         $this.previewActive = false;
       } else {
